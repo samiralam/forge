@@ -31,6 +31,12 @@ jobs:
           # First create a directory for our self-contained app
           mkdir -p jpackage_input
           
+          # Extract Maven version and convert to a valid macOS app version format
+          MAVEN_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          # Extract just the numbers and dots, remove leading zeros after dots
+          APP_VERSION=$(echo $MAVEN_VERSION | sed -E 's/([0-9]+)\.([0-9]+)\.0*([0-9]+).*/\1.\2.\3/' | sed 's/-.*$//')
+          echo "Maven version: $MAVEN_VERSION -> App version: $APP_VERSION"
+          
           # Copy the jar file and resources
           cp forge-gui-desktop/target/forge-gui-desktop-*-jar-with-dependencies.jar jpackage_input/forge.jar
           
@@ -57,7 +63,7 @@ jobs:
             --java-options "-Xmx4g" \
             --java-options "-Dio.netty.tryReflectionSetAccessible=true" \
             --java-options "-Dfile.encoding=UTF-8" \
-            --app-version "$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" \
+            --app-version "$APP_VERSION" \
             --dest target \
             --vendor "MTG Forge" \
             --copyright "MTG Forge"
