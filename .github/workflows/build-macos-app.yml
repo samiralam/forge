@@ -23,21 +23,17 @@ jobs:
 
       - name: Build Mac App
         run: |
-          # Run with debug output to see what's happening with the osx profile
-          mvn clean integration-test -P osx -X
+          # Run Maven through integration-test phase to create the macOS app bundle
+          mvn clean integration-test -P osx
         
       - name: List output files
         run: |
           echo "Listing contents of forge-gui-desktop/target directory:"
           ls -la forge-gui-desktop/target/
-          echo "Checking for osx directory:"
-          ls -la forge-gui-desktop/target/*-osx/ || echo "No -osx directory found"
-          echo "Finding app bundles:"
-          find forge-gui-desktop/target/ -name "*.app" -type d || echo "No .app found"
-          echo "Finding DMG files:"
-          find forge-gui-desktop/target/ -name "*.dmg" || echo "No .dmg found"
-          echo "Finding tar.bz2 files:"
-          find forge-gui-desktop/target/ -name "*.tar.bz2" || echo "No .tar.bz2 found"
+          echo "Checking macOS app bundle:"
+          ls -la forge-gui-desktop/target/*-osx/Forge.app || echo "Forge.app not found"
+          echo "Listing DMG file details:"
+          ls -la forge-gui-desktop/target/*.dmg || echo "No DMG file found"
           
       # The following steps are for signing and notarization
       # Uncomment these when you have set up the necessary secrets in your GitHub repository
@@ -119,7 +115,8 @@ jobs:
         with:
           name: MacApp
           path: |
-            forge-gui-desktop/target/
+            forge-gui-desktop/target/*-osx/Forge.app/
+            forge-gui-desktop/target/*.dmg
           if-no-files-found: warn
 
       - name: Upload to Release (if triggered by release)
@@ -128,4 +125,4 @@ jobs:
         with:
           files: |
             forge-gui-desktop/target/*.dmg
-            forge-gui-desktop/target/*-osx.tar.bz2 
+            forge-gui-desktop/target/*-osx/Forge.app/ 
