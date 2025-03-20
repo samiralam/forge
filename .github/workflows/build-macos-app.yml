@@ -80,7 +80,7 @@ jobs:
           fi
           
           # Create a simple launcher script 
-          cat > jpackage_input/forge-launcher.sh << 'EOL'
+          cat > jpackage_input/forge-launcher.sh << 'EOL' | sed 's/^          //'
           #!/bin/bash
           # Set app directory
           DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
