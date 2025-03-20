@@ -24,6 +24,17 @@ jobs:
       - name: Build Mac App
         run: mvn clean package -P osx
         
+      - name: List output files
+        run: |
+          echo "Listing contents of forge-gui-desktop/target directory:"
+          ls -la forge-gui-desktop/target/
+          echo "Finding app bundles:"
+          find forge-gui-desktop/target/ -name "*.app" -type d || echo "No .app found"
+          echo "Finding DMG files:"
+          find forge-gui-desktop/target/ -name "*.dmg" || echo "No .dmg found"
+          echo "Finding tar.bz2 files:"
+          find forge-gui-desktop/target/ -name "*.tar.bz2" || echo "No .tar.bz2 found"
+          
       # The following steps are for signing and notarization
       # Uncomment these when you have set up the necessary secrets in your GitHub repository
       
@@ -104,8 +115,8 @@ jobs:
         with:
           name: MacApp
           path: |
-            forge-gui-desktop/target/*.dmg
-            forge-gui-desktop/target/*-osx.tar.bz2
+            forge-gui-desktop/target/
+          if-no-files-found: warn
 
       - name: Upload to Release (if triggered by release)
         if: github.event_name == 'release'
