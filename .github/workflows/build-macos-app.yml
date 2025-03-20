@@ -1,0 +1,116 @@
+name: Build and Package macOS App
+
+on:
+  workflow_dispatch:  # Allow manual triggering
+  release:
+    types: [created]  # Run when a new release is created
+
+jobs:
+  build-mac-app:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Needed for git changelog generation
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 17
+          cache: maven
+
+      - name: Build Mac App
+        run: mvn clean package -P osx
+        
+      # The following steps are for signing and notarization
+      # Uncomment these when you have set up the necessary secrets in your GitHub repository
+      
+      # - name: Import Apple Developer Certificate
+      #   env:
+      #     CERTIFICATE_BASE64: ${{ secrets.MACOS_CERTIFICATE }}
+      #     CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+      #     KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      #   run: |
+      #     # Create a temporary keychain
+      #     KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+      #     security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+      #     security default-keychain -s $KEYCHAIN_PATH
+      #     security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+      #     security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+      #     
+      #     # Import certificate to keychain
+      #     echo $CERTIFICATE_BASE64 | base64 --decode > $RUNNER_TEMP/certificate.p12
+      #     security import $RUNNER_TEMP/certificate.p12 -k $KEYCHAIN_PATH -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+      #     security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+      # - name: Sign macOS App
+      #   env:
+      #     TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      #   run: |
+      #     # Find path to the built app
+      #     APP_PATH=$(find forge-gui-desktop/target/ -name "*.app" -type d)
+      #     
+      #     # Sign the app
+      #     codesign --force --deep --timestamp \
+      #       --options runtime \
+      #       --sign "Developer ID Application: $TEAM_ID" \
+      #       "$APP_PATH"
+      #     
+      #     # Verify signing
+      #     codesign --verify --verbose "$APP_PATH"
+
+      # - name: Create ZIP for Notarization
+      #   run: |
+      #     APP_PATH=$(find forge-gui-desktop/target/ -name "*.app" -type d)
+      #     APP_DIR=$(dirname "$APP_PATH")
+      #     APP_NAME=$(basename "$APP_PATH" .app)
+      #     
+      #     cd "$APP_DIR"
+      #     zip -r "${APP_NAME}.zip" "${APP_NAME}.app"
+      #     echo "ZIP_PATH=${APP_DIR}/${APP_NAME}.zip" >> $GITHUB_ENV
+
+      # - name: Notarize macOS App
+      #   env:
+      #     APPLE_ID: ${{ secrets.APPLE_ID }}
+      #     APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+      #     TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      #   run: |
+      #     # Submit for notarization
+      #     xcrun notarytool submit "$ZIP_PATH" \
+      #       --apple-id "$APPLE_ID" \
+      #       --password "$APPLE_APP_PASSWORD" \
+      #       --team-id "$TEAM_ID" \
+      #       --wait
+      #     
+      #     # Staple the ticket to the app
+      #     APP_PATH=$(find forge-gui-desktop/target/ -name "*.app" -type d)
+      #     xcrun stapler staple "$APP_PATH"
+      #     
+      #     # Verify stapling
+      #     stapler validate "$APP_PATH"
+
+      # - name: Sign DMG
+      #   env:
+      #     TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      #   run: |
+      #     # Find the DMG and sign it
+      #     DMG_PATH=$(find forge-gui-desktop/target/ -name "*.dmg")
+      #     codesign --force --sign "Developer ID Application: $TEAM_ID" "$DMG_PATH"
+
+      - name: Upload Mac App as Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: MacApp
+          path: |
+            forge-gui-desktop/target/*.dmg
+            forge-gui-desktop/target/*-osx.tar.bz2
+
+      - name: Upload to Release (if triggered by release)
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            forge-gui-desktop/target/*.dmg
+            forge-gui-desktop/target/*-osx.tar.bz2 
