@@ -72,11 +72,11 @@ jobs:
           mkdir -p forge-gui/src/main/config
           if [ ! -f "forge-gui/src/main/config/forge.deck.associations" ]; then
             cat > forge-gui/src/main/config/forge.deck.associations << EOF
-<mime-type>application/x-forge-deck</mime-type>
-<extension>dck</extension>
-<description>Forge Deck File</description>
-<icon>Forge.icns</icon>
-EOF
+            <mime-type>application/x-forge-deck</mime-type>
+            <extension>dck</extension>
+            <description>Forge Deck File</description>
+            <icon>Forge.icns</icon>
+            EOF
           fi
           
           # Create a simple launcher script 
