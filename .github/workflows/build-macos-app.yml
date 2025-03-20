@@ -71,12 +71,12 @@ jobs:
           # Create deck file associations if needed
           mkdir -p forge-gui/src/main/config
           if [ ! -f "forge-gui/src/main/config/forge.deck.associations" ]; then
-            cat > forge-gui/src/main/config/forge.deck.associations << 'ASSOC'
-            <mime-type>application/x-forge-deck</mime-type>
-            <extension>dck</extension>
-            <description>Forge Deck File</description>
-            <icon>Forge.icns</icon>
-            ASSOC
+            cat > forge-gui/src/main/config/forge.deck.associations << EOF
+<mime-type>application/x-forge-deck</mime-type>
+<extension>dck</extension>
+<description>Forge Deck File</description>
+<icon>Forge.icns</icon>
+EOF
           fi
           
           # Create a simple launcher script 
