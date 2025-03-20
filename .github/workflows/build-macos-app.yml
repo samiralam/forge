@@ -46,12 +46,95 @@ jobs:
           # Copy the icon
           cp forge-gui/src/main/config/Forge.icns jpackage_input/Forge.icns
           
+          # Copy skin resources to be included in the app bundle
+          mkdir -p jpackage_input/resources/skins
+          if [ -d "forge-gui/res/skins" ]; then
+            cp -R forge-gui/res/skins/* jpackage_input/resources/skins/
+          fi
+          
+          # Copy additional resources
+          mkdir -p jpackage_input/resources/sounds
+          if [ -d "forge-gui/res/sounds" ]; then
+            cp -R forge-gui/res/sounds/* jpackage_input/resources/sounds/
+          fi
+          
+          mkdir -p jpackage_input/resources/fonts
+          if [ -d "forge-gui/res/fonts" ]; then
+            cp -R forge-gui/res/fonts/* jpackage_input/resources/fonts/
+          fi
+          
+          mkdir -p jpackage_input/resources/images
+          if [ -d "forge-gui/res/images" ]; then
+            cp -R forge-gui/res/images/* jpackage_input/resources/images/
+          fi
+          
+          # Create deck file associations if needed
+          mkdir -p forge-gui/src/main/config
+          if [ ! -f "forge-gui/src/main/config/forge.deck.associations" ]; then
+            cat > forge-gui/src/main/config/forge.deck.associations << 'ASSOC'
+            <mime-type>application/x-forge-deck</mime-type>
+            <extension>dck</extension>
+            <description>Forge Deck File</description>
+            <icon>Forge.icns</icon>
+            ASSOC
+          fi
+          
           # Create a simple launcher script 
           cat > jpackage_input/forge-launcher.sh << 'EOL'
           #!/bin/bash
           # Set app directory
           DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
           JAVA_PATH="$DIR/../runtime/Contents/Home/bin/java"
+          
+          # Set up cache directories in the user's home
+          FORGE_USER_DIR="$HOME/.forge"
+          mkdir -p "$FORGE_USER_DIR/cache/skins"
+          mkdir -p "$FORGE_USER_DIR/cache/sounds"
+          mkdir -p "$FORGE_USER_DIR/cache/fonts"
+          mkdir -p "$FORGE_USER_DIR/cache/images"
+          
+          # Copy resources from app resources if they don't exist in user directory
+          RESOURCES_COPIED=false
+          
+          # Copy skins
+          if [ -d "$DIR/resources/skins" ]; then
+            if [ ! "$(ls -A $FORGE_USER_DIR/cache/skins)" ]; then
+              echo "Copying skin resources to $FORGE_USER_DIR/cache/skins"
+              cp -R "$DIR/resources/skins/"* "$FORGE_USER_DIR/cache/skins/"
+              RESOURCES_COPIED=true
+            fi
+          fi
+          
+          # Copy sounds
+          if [ -d "$DIR/resources/sounds" ]; then
+            if [ ! "$(ls -A $FORGE_USER_DIR/cache/sounds)" ]; then
+              echo "Copying sound resources to $FORGE_USER_DIR/cache/sounds"
+              cp -R "$DIR/resources/sounds/"* "$FORGE_USER_DIR/cache/sounds/"
+              RESOURCES_COPIED=true
+            fi
+          fi
+          
+          # Copy fonts
+          if [ -d "$DIR/resources/fonts" ]; then
+            if [ ! "$(ls -A $FORGE_USER_DIR/cache/fonts)" ]; then
+              echo "Copying font resources to $FORGE_USER_DIR/cache/fonts"
+              cp -R "$DIR/resources/fonts/"* "$FORGE_USER_DIR/cache/fonts/"
+              RESOURCES_COPIED=true
+            fi
+          fi
+          
+          # Copy images
+          if [ -d "$DIR/resources/images" ]; then
+            if [ ! "$(ls -A $FORGE_USER_DIR/cache/images)" ]; then
+              echo "Copying image resources to $FORGE_USER_DIR/cache/images"
+              cp -R "$DIR/resources/images/"* "$FORGE_USER_DIR/cache/images/"
+              RESOURCES_COPIED=true
+            fi
+          fi
+          
+          if [ "$RESOURCES_COPIED" = true ]; then
+            echo "Resources copied to $FORGE_USER_DIR"
+          fi
           
           # Check if Java exists at expected path
           if [ ! -f "$JAVA_PATH" ]; then
@@ -73,7 +156,7 @@ jobs:
           echo "Launching Forge with Java: $JAVA_PATH"
           
           # Launch app with appropriate VM args
-          "$JAVA_PATH" -Xmx4g -Dio.netty.tryReflectionSetAccessible=true -Dfile.encoding=UTF-8 --add-opens java.desktop/java.beans=ALL-UNNAMED --add-opens java.desktop/javax.swing.border=ALL-UNNAMED --add-opens java.desktop/javax.swing.event=ALL-UNNAMED --add-opens java.desktop/sun.swing=ALL-UNNAMED --add-opens java.desktop/java.awt.image=ALL-UNNAMED --add-opens java.desktop/java.awt.color=ALL-UNNAMED --add-opens java.desktop/sun.awt.image=ALL-UNNAMED --add-opens java.desktop/javax.swing=ALL-UNNAMED --add-opens java.desktop/java.awt=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.text=ALL-UNNAMED --add-opens java.desktop/java.awt.font=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/java.math=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED -jar "$DIR/forge.jar"
+          "$JAVA_PATH" -Xmx4g -Dio.netty.tryReflectionSetAccessible=true -Dfile.encoding=UTF-8 -Duser.home="$HOME" -Dforge.profile.dir="$FORGE_USER_DIR" --add-opens java.desktop/java.beans=ALL-UNNAMED --add-opens java.desktop/javax.swing.border=ALL-UNNAMED --add-opens java.desktop/javax.swing.event=ALL-UNNAMED --add-opens java.desktop/sun.swing=ALL-UNNAMED --add-opens java.desktop/java.awt.image=ALL-UNNAMED --add-opens java.desktop/java.awt.color=ALL-UNNAMED --add-opens java.desktop/sun.awt.image=ALL-UNNAMED --add-opens java.desktop/javax.swing=ALL-UNNAMED --add-opens java.desktop/java.awt=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.text=ALL-UNNAMED --add-opens java.desktop/java.awt.font=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/java.math=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED -jar "$DIR/forge.jar"
           EOL
           chmod +x jpackage_input/forge-launcher.sh
 
@@ -87,10 +170,32 @@ jobs:
             --java-options "-Xmx4g" \
             --java-options "-Dio.netty.tryReflectionSetAccessible=true" \
             --java-options "-Dfile.encoding=UTF-8" \
+            --java-options "--add-opens java.desktop/java.beans=ALL-UNNAMED" \
+            --java-options "--add-opens java.desktop/javax.swing.border=ALL-UNNAMED" \
+            --java-options "--add-opens java.desktop/javax.swing.event=ALL-UNNAMED" \
+            --java-options "--add-opens java.desktop/sun.swing=ALL-UNNAMED" \
+            --java-options "--add-opens java.desktop/java.awt.image=ALL-UNNAMED" \
+            --java-options "--add-opens java.desktop/java.awt.color=ALL-UNNAMED" \
+            --java-options "--add-opens java.desktop/sun.awt.image=ALL-UNNAMED" \
+            --java-options "--add-opens java.desktop/javax.swing=ALL-UNNAMED" \
+            --java-options "--add-opens java.desktop/java.awt=ALL-UNNAMED" \
+            --java-options "--add-opens java.base/java.util=ALL-UNNAMED" \
+            --java-options "--add-opens java.base/java.lang=ALL-UNNAMED" \
+            --java-options "--add-opens java.base/java.lang.reflect=ALL-UNNAMED" \
+            --java-options "--add-opens java.base/java.text=ALL-UNNAMED" \
+            --java-options "--add-opens java.desktop/java.awt.font=ALL-UNNAMED" \
+            --java-options "--add-opens java.base/jdk.internal.misc=ALL-UNNAMED" \
+            --java-options "--add-opens java.base/sun.nio.ch=ALL-UNNAMED" \
+            --java-options "--add-opens java.base/java.nio=ALL-UNNAMED" \
+            --java-options "--add-opens java.base/java.math=ALL-UNNAMED" \
+            --java-options "--add-opens java.base/java.util.concurrent=ALL-UNNAMED" \
+            --java-options "--add-opens java.base/java.net=ALL-UNNAMED" \
             --app-version "$APP_VERSION" \
             --dest target \
             --vendor "MTG Forge" \
             --copyright "MTG Forge" \
+            --file-associations forge-gui/src/main/config/forge.deck.associations \
+            --resource-dir jpackage_input/resources \
             --runtime-image $JAVA_HOME
             
           # Create a DMG
