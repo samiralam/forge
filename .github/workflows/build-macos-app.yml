@@ -100,7 +100,7 @@ jobs:
       #     codesign --force --sign "Developer ID Application: $TEAM_ID" "$DMG_PATH"
 
       - name: Upload Mac App as Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: MacApp
           path: |
