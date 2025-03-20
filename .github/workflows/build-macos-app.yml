@@ -22,12 +22,16 @@ jobs:
           cache: maven
 
       - name: Build Mac App
-        run: mvn clean package -P osx
+        run: |
+          # Run with debug output to see what's happening with the osx profile
+          mvn clean integration-test -P osx -X
         
       - name: List output files
         run: |
           echo "Listing contents of forge-gui-desktop/target directory:"
           ls -la forge-gui-desktop/target/
+          echo "Checking for osx directory:"
+          ls -la forge-gui-desktop/target/*-osx/ || echo "No -osx directory found"
           echo "Finding app bundles:"
           find forge-gui-desktop/target/ -name "*.app" -type d || echo "No .app found"
           echo "Finding DMG files:"
