@@ -21,19 +21,70 @@ jobs:
           java-version: 17
           cache: maven
 
-      - name: Build Mac App
+      - name: Build Mac App with Maven
         run: |
           # Run Maven through integration-test phase to create the macOS app bundle
           mvn clean integration-test -P osx
-        
+
+      - name: Create Self-Contained App Bundle with jpackage
+        run: |
+          # First create a directory for our self-contained app
+          mkdir -p jpackage_input
+          
+          # Copy the jar file and resources
+          cp forge-gui-desktop/target/forge-gui-desktop-*-jar-with-dependencies.jar jpackage_input/forge.jar
+          
+          # Copy the icon
+          cp forge-gui/src/main/config/Forge.icns jpackage_input/Forge.icns
+          
+          # Create a simple launcher script 
+          cat > jpackage_input/forge-launcher.sh << 'EOL'
+          #!/bin/bash
+          # Set app directory
+          DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+          # Launch app with appropriate VM args
+          "$DIR/java" -Xmx4g -Dio.netty.tryReflectionSetAccessible=true -Dfile.encoding=UTF-8 --add-opens java.desktop/java.beans=ALL-UNNAMED --add-opens java.desktop/javax.swing.border=ALL-UNNAMED --add-opens java.desktop/javax.swing.event=ALL-UNNAMED --add-opens java.desktop/sun.swing=ALL-UNNAMED --add-opens java.desktop/java.awt.image=ALL-UNNAMED --add-opens java.desktop/java.awt.color=ALL-UNNAMED --add-opens java.desktop/sun.awt.image=ALL-UNNAMED --add-opens java.desktop/javax.swing=ALL-UNNAMED --add-opens java.desktop/java.awt=ALL-UNNAMED --add-opens java.base/java.util=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED --add-opens java.base/java.lang.reflect=ALL-UNNAMED --add-opens java.base/java.text=ALL-UNNAMED --add-opens java.desktop/java.awt.font=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED --add-opens java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/java.math=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED -jar "$DIR/forge.jar"
+          EOL
+          chmod +x jpackage_input/forge-launcher.sh
+
+          # Create the app package
+          jpackage --input jpackage_input \
+            --name "Forge" \
+            --main-jar forge.jar \
+            --main-class forge.view.Main \
+            --type app-image \
+            --icon jpackage_input/Forge.icns \
+            --java-options "-Xmx4g" \
+            --java-options "-Dio.netty.tryReflectionSetAccessible=true" \
+            --java-options "-Dfile.encoding=UTF-8" \
+            --app-version "$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" \
+            --dest target \
+            --vendor "MTG Forge" \
+            --copyright "MTG Forge"
+            
+          # Create a DMG
+          jpackage --name "Forge" \
+            --app-image target/Forge.app \
+            --type dmg \
+            --dest target \
+            --copyright "MTG Forge" \
+            --vendor "MTG Forge"
+            
+          # Move the output files to the expected location
+          mkdir -p forge-gui-desktop/target/forge-self-contained
+          cp -R target/Forge.app forge-gui-desktop/target/forge-self-contained/
+          cp target/Forge-*.dmg forge-gui-desktop/target/forge-self-contained/
+
       - name: List output files
         run: |
           echo "Listing contents of forge-gui-desktop/target directory:"
           ls -la forge-gui-desktop/target/
-          echo "Checking macOS app bundle:"
-          ls -la forge-gui-desktop/target/*-osx/Forge.app || echo "Forge.app not found"
+          echo "Checking original macOS app bundle:"
+          ls -la forge-gui-desktop/target/*-osx/Forge.app || echo "Original Forge.app not found"
+          echo "Checking self-contained macOS app bundle:"
+          ls -la forge-gui-desktop/target/forge-self-contained || echo "Self-contained Forge.app not found"
           echo "Listing DMG file details:"
-          ls -la forge-gui-desktop/target/*.dmg || echo "No DMG file found"
+          ls -la forge-gui-desktop/target/*.dmg forge-gui-desktop/target/forge-self-contained/*.dmg || echo "No DMG files found"
           
       # The following steps are for signing and notarization
       # Uncomment these when you have set up the necessary secrets in your GitHub repository
@@ -117,6 +168,15 @@ jobs:
           path: |
             forge-gui-desktop/target/*-osx/Forge.app/
             forge-gui-desktop/target/*.dmg
+            forge-gui-desktop/target/forge-self-contained/
+          if-no-files-found: warn
+
+      - name: Upload Self-Contained Mac App as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MacApp-Self-Contained
+          path: |
+            forge-gui-desktop/target/forge-self-contained/
           if-no-files-found: warn
 
       - name: Upload to Release (if triggered by release)
@@ -125,4 +185,4 @@ jobs:
         with:
           files: |
             forge-gui-desktop/target/*.dmg
-            forge-gui-desktop/target/*-osx/Forge.app/ 
+            forge-gui-desktop/target/forge-self-contained/*.dmg 
